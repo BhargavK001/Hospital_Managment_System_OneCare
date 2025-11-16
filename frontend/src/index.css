@@ -1,0 +1,20 @@
+.patient-layout {
+  display: flex;
+  height: 100vh;
+}
+
+.patient-main {
+  flex: 1;
+  transition: margin-left 0.25s ease;
+}
+
+.patient-main.open {
+  margin-left: 0;
+}
+
+.patient-main.closed {
+  margin-left: -180px;
+}
+.appointment-card { background: #fff; border-radius: 8px; border: 1px solid rgba(20,20,20,0.03); }
+.appointment-card .badge { padding: 6px 8px; font-size: 12px; }
+.card .form-label.small { font-weight: 600; color: #4b5563; }
