@@ -306,6 +306,26 @@ app.put("/api/services/:id", async (req, res) => {
   }
 });
 
+// Cancel appointment (mark status Cancelled)
+app.put("/appointments/:id/cancel", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const appt = await AppointmentModel.findByIdAndUpdate(
+      id,
+      { status: "cancelled" },
+      { new: true }
+    );
+
+    if (!appt) return res.status(404).json({ message: "Appointment not found" });
+
+    res.json({ message: "Appointment cancelled", data: appt });
+  } catch (err) {
+    console.error("Cancel error", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
 app.listen(3001,()=> {
     console.log("Server is runing")
 })
