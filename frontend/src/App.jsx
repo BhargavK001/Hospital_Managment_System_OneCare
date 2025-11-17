@@ -32,6 +32,7 @@ import DoctorServices from "./doctor/DoctorServices";
 /* Patient */
 import PatientDashboard from "./Patient/Patient-Dashboard";
 import PatientAppointments from "./Patient/PatientAppointments";
+import PatientBookAppointment from "./Patient/PatientBookAppointment";
 
 function App() {
   return (
@@ -57,14 +58,12 @@ function App() {
 
         {/* Admin – Appointments / billing / services / settings */}
         <Route path="/Appointments" element={<Appointment />} />
-        {/* <Route path="/BillingRecords" element={<BillingRecords />} /> */}
-        {/* <Route path="/Services" element={<Services />} /> */}
-        {/* <Route path="/Settings" element={<Settings />} /> */}
+       
 
         {/* Doctor section */}
-        {/* canonical doctor dashboard */}
+        
         <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
-        {/* keep backward-compat route if something still uses /doctor-dashboard */}
+       
         <Route
           path="/doctor-dashboard"
           element={<Navigate to="/doctor/dashboard" replace />}
@@ -79,6 +78,7 @@ function App() {
         {/* Patient section */}
         <Route path="/patient/dashboard" element={<PatientDashboard />} />
         <Route path="/patient/appointments" element={<PatientAppointments />} />
+        <Route path="/patient/book" element={<PatientBookAppointment />} />
 
         {/*Billing section */}
         <Route path="/BillingRecords" element={<BillingRecords />} />
