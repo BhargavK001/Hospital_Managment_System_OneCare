@@ -1,55 +1,102 @@
+/* base */
 .patient-sidebar {
   width: 250px;
-  height: 100vh;
-  background: white;
-  border-right: 1px solid #e5e7eb;
-  padding: 15px;
-  transition: 0.25s ease;
+  transition: width 200ms ease, padding 200ms ease, transform 200ms ease;
+  box-sizing: border-box;
+  background: #fff;
 }
 
 .patient-sidebar.closed {
-  width: 70px;
-  padding-left: 10px;
-  padding-right: 10px;
+  width: 72px;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
 }
 
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 25px;
+/* brand */
+.patient-sidebar .patient-brand {
+  padding-left: 2px;
 }
 
-.title {
-  font-size: 22px;
-  font-weight: 700;
-  color: #1560ff;
+.patient-sidebar .patient-brand img {
+  display: block;
 }
 
-.nav-link {
-  padding: 12px;
-  border-radius: 8px;
-  color: #1d4ed8;
+/* nav links */
+.patient-sidebar .nav-link {
+  color: #1560ff !important;
   font-weight: 500;
+  border-radius: 8px;
+  padding: 10px 12px;
 }
 
-.nav-link:hover {
-  background: #eef4ff;
+.patient-sidebar .nav-link.active {
+  background: #1560ff !important;
+  color: #fff !important;
+  box-shadow: 0 3px 10px rgba(21, 96, 255, 0.12);
 }
 
-.nav-link.active {
-  background: #1560ff;
-  color: white !important;
+/* when collapsed, center icons */
+.patient-sidebar.closed .nav-link {
+  justify-content: center;
 }
 
-.icon {
-  font-size: 18px;
-}
-
-.patient-sidebar.closed span {
+/* hide text when closed */
+.patient-sidebar.closed .nav-link span,
+.patient-sidebar.closed .nav-link .ms-2 {
   display: none;
 }
 
-.patient-sidebar.closed .nav-link {
-  justify-content: center;
+/* hover */
+.patient-sidebar .nav-link:hover {
+  background: #f3f6ff !important;
+  color: #1560ff !important;
+}
+
+/* encounter submenu (patient) */
+.patient-encounter-submenu {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 180ms ease, opacity 160ms ease;
+  opacity: 0;
+  margin-left: 8px;
+}
+
+.patient-encounter-submenu.open {
+  max-height: 200px;
+  opacity: 1;
+}
+
+.patient-encounter-submenu .sub-link {
+  display: block;
+  padding: 8px 12px;
+  color: #345;
+  text-decoration: none;
+  border-radius: 6px;
+}
+
+.patient-encounter-submenu .sub-link.active {
+  background: rgba(21, 96, 255, 0.12);
+  color: #1560ff;
+}
+
+/* make nav fill height so Settings sits at bottom */
+.patient-sidebar .nav {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* responsive: slide sidebar on small screens */
+@media (max-width: 900px) {
+  .patient-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 200;
+    height: 100vh;
+    transform: translateX(0);
+  }
+  .patient-sidebar.closed {
+    transform: translateX(-260px);
+  }
 }

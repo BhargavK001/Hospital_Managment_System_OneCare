@@ -22,7 +22,9 @@ export default function DoctorDashboard() {
   const navigate = useNavigate();
   const calendarRef = useRef(null);
 
-  // stats (you can replace with API fetch if you already have stats endpoint)
+  const API_BASE = "http://localhost:3001";
+
+  // ---------- STATS ----------
   const [stats, setStats] = useState({
     totalPatients: 0,
     totalAppointments: 0,
@@ -31,12 +33,12 @@ export default function DoctorDashboard() {
   });
   const [loadingStats, setLoadingStats] = useState(true);
 
-  // calendar events
+  // ---------- CALENDAR ----------
   const [events, setEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [error, setError] = useState(null);
 
-  // get doctor id & token from localStorage (adjust keys if you use different names)
+  // doctor info from localStorage (adjust if you store differently)
   const storedDoctor = (() => {
     try {
       return JSON.parse(localStorage.getItem("doctor") || "null");
@@ -44,57 +46,76 @@ export default function DoctorDashboard() {
       return null;
     }
   })();
-  const doctorId = storedDoctor?._id || storedDoctor?.id || localStorage.getItem("doctorId") || null;
-  const token = localStorage.getItem("token") || localStorage.getItem("doctorToken") || null;
 
-  // helper mapping function: adapt to your appointment JSON shape
+  // this string is used to filter appointments by doctorName on backend
+  const doctorName =
+    storedDoctor?.name ||
+    (storedDoctor?.firstName
+      ? `${storedDoctor.firstName} ${storedDoctor.lastName || ""}`
+      : "") ||
+    "";
+
+  // ---------- helper: "04-Nov-2025" + "4:30 pm"  → ISO datetime ----------
+  function toISODateTime(dateStr, timeStr) {
+    if (!dateStr) return null;
+    if (!timeStr) return dateStr;
+    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(am|pm)/i);
+    if (!match) return `${dateStr}T09:00:00`; // fallback 9am
+    let [, hh, mm, ampm] = match;
+    let h = parseInt(hh, 10);
+    ampm = ampm.toLowerCase();
+    if (ampm === "pm" && h !== 12) h += 12;
+    if (ampm === "am" && h === 12) h = 0;
+    const hStr = String(h).padStart(2, "0");
+    return `${dateStr}T${hStr}:${mm}:00`;
+  }
+
+  // ---------- map DB appointment → FullCalendar event ----------
   const mapAppointmentToEvent = (a) => {
-    // common shapes handled here — edit fields if your API uses different keys
     const id = a._id || a.id;
-    const patientName = a.patientName || a.patient?.name || (a.patient && `${a.patient.firstName} ${a.patient.lastName}`) || "Patient";
-    const serviceName = a.serviceName || a.service || (a.service && a.service.name) || "Appointment";
+    const patientName =
+      a.patientName ||
+      a.patient?.name ||
+      (a.patient && `${a.patient.firstName} ${a.patient.lastName}`) ||
+      "Patient";
+    const serviceName =
+      a.services ||
+      a.serviceName ||
+      a.service ||
+      (a.service && a.service.name) ||
+      "Appointment";
 
-    // If backend stores full ISO datetime in a.start or a.datetime:
-    let start = a.start || a.datetime || (a.date && (a.time ? `${a.date}T${a.time}` : `${a.date}T00:00:00`));
-    let end = a.end || a.endTime || (a.date && (a.endTime ? `${a.date}T${a.endTime}` : null));
+    // NEW: use date + time (like "4:30 pm") and convert to ISO
+    const startISO = toISODateTime(a.date, a.time);
+    let endISO = null;
 
-    // fallback: if only date present, make it all-day event
-    const allDay = (!!start && start.length === 10 && !start.includes("T")) || !!a.allDay;
-
-    // default times if missing (optional)
-    if (!start && a.date) start = `${a.date}T09:00:00`;
-    if (!end && start && !allDay) {
-      // assume 30 min slot
-      const dt = new Date(start);
-      dt.setMinutes(dt.getMinutes() + 30);
-      end = dt.toISOString();
+    if (startISO) {
+      const dt = new Date(startISO);
+      dt.setMinutes(dt.getMinutes() + 30); // 30-min slot
+      endISO = dt.toISOString();
     }
 
     return {
       id,
       title: `${patientName} — ${serviceName}`,
-      start,
-      end,
-      allDay,
+      start: startISO,
+      end: endISO,
+      allDay: false,
       backgroundColor: "#1560ff",
       borderColor: "#1560ff",
       extendedProps: { raw: a },
     };
   };
 
-  // fetch stats (reuse same endpoint admin used if you have one)
+  // ---------- fetch stats (placeholder) ----------
   useEffect(() => {
     let mounted = true;
 
     const fetchStats = async () => {
       setLoadingStats(true);
       try {
-        // If you have admin/stat endpoint, reuse it. Example:
-        // const res = await axios.get("http://localhost:3001/dashboard-stats");
-        // setStats({ totalPatients: res.data.totalPatients, ... })
-
-        // If not, fetch minimal values (or compute from appointments)
-        setStats((s) => ({ ...s, totalServices: 2 })); // placeholder
+        // you can reuse /dashboard-stats here later
+        setStats((s) => ({ ...s, totalServices: 2 }));
       } catch (err) {
         console.error("Failed to fetch stats", err);
       } finally {
@@ -106,39 +127,36 @@ export default function DoctorDashboard() {
     return () => (mounted = false);
   }, []);
 
-  // fetch appointments and map to events
+  // ---------- fetch appointments & map to events ----------
   useEffect(() => {
     let mounted = true;
+
     const fetchEvents = async () => {
       setLoadingEvents(true);
       setError(null);
 
       try {
-        // use your real endpoint. Example: appointments filtered by doctorId
-        // Adjust host/port as per your backend config or use REACT_APP_API_URL
-        const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:3001";
+        // IMPORTANT CHANGE:
+        // backend /appointments supports ?doctor=, NOT ?doctorId=
         let url = `${API_BASE}/appointments`;
-        if (doctorId) url = `${API_BASE}/appointments?doctorId=${doctorId}`;
+        if (doctorName) {
+          url = `${API_BASE}/appointments?doctor=${encodeURIComponent(
+            doctorName
+          )}`;
+        }
 
-        const res = await axios.get(url, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-
-        // normalize data: if res.data is array use it else if nested use res.data.data
-        const appointments = Array.isArray(res.data) ? res.data : res.data.data ?? [];
+        const res = await axios.get(url);
+        const appointments = Array.isArray(res.data)
+          ? res.data
+          : res.data.data ?? [];
 
         const mapped = appointments.map(mapAppointmentToEvent);
-
-        // Merge with no-op dummy events if you want some sample events (optional)
-        // const dummy = [ ... ];
-        // setEvents([...mapped, ...dummy]);
 
         if (mounted) setEvents(mapped);
       } catch (err) {
         console.error("Failed to fetch appointments for calendar:", err);
         if (mounted) {
           setError("Failed to load calendar events");
-          // fallback to empty or sample events
           setEvents([]);
         }
       } finally {
@@ -148,21 +166,17 @@ export default function DoctorDashboard() {
 
     fetchEvents();
     return () => (mounted = false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doctorId]); // re-run if doctorId changes
+  }, [doctorName]);
 
-  // calendar interactions
+  // ---------- calendar interactions ----------
   const handleDateSelect = (selectInfo) => {
-    // user selects a date range — we can open booking page or modal here
-    // example: navigate to patient booking page with preselected date
     const d = selectInfo.startStr;
-    navigate(`/doctor/appointments?date=${encodeURIComponent(d)}`); // change as per your route
+    navigate(`/doctor/appointments?date=${encodeURIComponent(d)}`);
     selectInfo.view.calendar.unselect();
   };
 
   const handleEventClick = (clickInfo) => {
     const ev = clickInfo.event;
-    // navigate to appointment detail or open modal
     navigate(`/doctor/appointments/${ev.id}`);
   };
 
@@ -186,7 +200,9 @@ export default function DoctorDashboard() {
                 </div>
                 <div className="text-start">
                   <h6 className="text-muted mb-1">Total Patients</h6>
-                  <h3 className="fw-bold mb-0">{loadingStats ? "…" : stats.totalPatients}</h3>
+                  <h3 className="fw-bold mb-0">
+                    {loadingStats ? "…" : stats.totalPatients}
+                  </h3>
                 </div>
               </div>
             </div>
@@ -205,7 +221,9 @@ export default function DoctorDashboard() {
                 </div>
                 <div className="text-start">
                   <h6 className="text-muted mb-1">Total Appointments</h6>
-                  <h3 className="fw-bold mb-0">{loadingStats ? "…" : stats.totalAppointments}</h3>
+                  <h3 className="fw-bold mb-0">
+                    {loadingStats ? "…" : stats.totalAppointments}
+                  </h3>
                 </div>
               </div>
             </div>
@@ -224,7 +242,9 @@ export default function DoctorDashboard() {
                 </div>
                 <div className="text-start">
                   <h6 className="text-muted mb-1">Today's Appointments</h6>
-                  <h3 className="fw-bold mb-0">{loadingStats ? "…" : stats.todayAppointments}</h3>
+                  <h3 className="fw-bold mb-0">
+                    {loadingStats ? "…" : stats.todayAppointments}
+                  </h3>
                 </div>
               </div>
             </div>
@@ -243,7 +263,9 @@ export default function DoctorDashboard() {
                 </div>
                 <div className="text-start">
                   <h6 className="text-muted mb-1">Total Services</h6>
-                  <h3 className="fw-bold mb-0">{loadingStats ? "…" : stats.totalServices}</h3>
+                  <h3 className="fw-bold mb-0">
+                    {loadingStats ? "…" : stats.totalServices}
+                  </h3>
                 </div>
               </div>
             </div>
@@ -257,8 +279,12 @@ export default function DoctorDashboard() {
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h5 className="m-0">Appointment</h5>
                 <div>
-                  <button className="btn btn-sm btn-outline-secondary me-2">Apply filters</button>
-                  <span className="text-muted small">{loadingEvents ? "Loading events…" : `${events.length} events`}</span>
+                  <button className="btn btn-sm btn-outline-secondary me-2">
+                    Apply filters
+                  </button>
+                  <span className="text-muted small">
+                    {loadingEvents ? "Loading events…" : `${events.length} events`}
+                  </span>
                 </div>
               </div>
 

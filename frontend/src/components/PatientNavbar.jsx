@@ -1,23 +1,35 @@
-// src/components/PatientNavbar.jsx
 import React from "react";
+import { FaBars } from "react-icons/fa";
+import "bootstrap/dist/css/bootstrap.min.css";
+import admin from "../images/admin.png"; // use same image or patient avatar
 import "../styles/PatientNavbar.css";
 
-export default function PatientNavbar() {
+const PatientNavbar = ({ toggleSidebar }) => {
   return (
-    <nav className="patient-navbar">
-      <div className="left">
-        
-        <div style={{ width: 36 }} /> 
+    <nav className="navbar navbar-dark bg-primary px-3 d-flex justify-content-between align-items-center patient-navbar">
+      <div className="d-flex align-items-center gap-2">
+        <button
+          className="btn btn-outline-light border-0"
+          onClick={toggleSidebar}
+        >
+          <FaBars size={22} />
+        </button>
+        <h4 className="text-white fw-bold mb-0">OneCare Patient</h4>
       </div>
 
-      <div className="right">
+      {/* Profile */}
+      <div className="d-flex align-items-center">
         <img
-          src={localStorage.getItem("patientAvatar") || "https://cdn-icons-png.flaticon.com/512/1946/1946429.png"}
-          className="profile-img"
-          alt="user"
+          src={admin}
+          alt="Patient Avatar"
+          width="35"
+          height="35"
+          className="rounded-circle"
         />
-        <span className="username">{localStorage.getItem("patientName") || "Patient"}</span>
+        <span className="text-white ms-2 fw-semibold">Patient</span>
       </div>
     </nav>
   );
-}
+};
+
+export default PatientNavbar;
