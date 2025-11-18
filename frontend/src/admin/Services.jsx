@@ -1,445 +1,567 @@
-// src/admin/Services.jsx
 import React, { useEffect, useState } from "react";
-import api from "../utils/api";
-import Navbar from "../components/Navbar";
-import Sidebar from "../components/Sidebar";
-import DurationPicker from "../components/DurationPicker";
-import "../styles/services.css";
-import "../styles/Durationpicker.css";
+import axios from "axios";
+import AdminLayout from "../layouts/AdminLayout";
+import { FaSearch, FaSort, FaPen, FaTrash } from "react-icons/fa";
+import "../styles/Services.css";
 
-export default function Services({ sidebarCollapsed = false, toggleSidebar }) {
+const Services = () => {
   const [services, setServices] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [patients, setPatients] = useState([]);
+  const [search, setSearch] = useState("");
 
-  // Put this just below your useState hooks in Services component
-
-  const clinicOptions = [
-    "Valley Clinic",
-    "City Clinic",
-    "One Care Main Clinic",
-    "Downtown Clinic",
-  ];
-
-  const categoryOptions = [
-    "general dentistry",
-    "system service",
-    "checkup",
-    "telemed",
-    "physiotherapy",
-  ];
-
-  const doctorOptions = [
-    "Dr. Viraj Rudrawar",
-    "Dr. Harshada Sohani",
-    "Dr. Tanmay Mule",
-    "Dr. Smith",
-    "Dr. John Doe",
-  ];
-
-  const [form, setForm] = useState({
-    name: "",
-    clinicName: "",
-    doctor: "",
-    charges: "",
-    duration: "00:00",
+  const [formData, setFormData] = useState({
     category: "",
-    active: true,
+    name: "",
+    charges: "",
+    clinic: "",
+    doctorId: "",
+    isTelemed: "No",
+    duration: "",
+    status: "Active",
+    allowMultiSelection: "Yes",
   });
 
-  const [editId, setEditId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [showForm, setShowForm] = useState(true);
-
- const loadServices = async () => {
-  try {
-    setLoading(true);
-    const res = await api.get("/services");
-    console.log("Frontend loadServices ->", res.data);   // 👈 add this line
-    setServices(res.data || []);
-  } catch (err) {
-    console.error("loadServices error", err);
-    alert("Unable to load services. Check backend.");
-  } finally {
-    setLoading(false);
-  }
-};
-
-useEffect(() => {
-  loadServices();
-}, []);
-
-  const loadPatients = async () => {
+  // ---------- API ----------
+  const fetchServices = async () => {
     try {
-      const res = await api.get("/patients");
-      setPatients(res.data);
+      setLoading(true);
+      const res = await axios.get("http://localhost:3001/api/services");
+      setServices(res.data || []);
     } catch (err) {
-      console.error("Error loading patients:", err);
+      console.error("Error fetching services", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-
-  // Add service
-  const addService = async () => {
-    if (!form.name || !form.name.trim()) {
-      alert("Please enter patient name");
-      return;
-    }
-
+  const fetchDoctors = async () => {
     try {
-      const res = await api.post("/services", form);
-      setServices((prev) => [res.data, ...prev]);
-      clearForm();
-      window.scrollTo({ top: 300, behavior: "smooth" });
+      const res = await axios.get("http://localhost:3001/api/doctors");
+      setDoctors(res.data || []);
     } catch (err) {
-      console.error("addService error", err);
-      if (err.response) alert("Server error: " + JSON.stringify(err.response.data));
-      else alert("Network error: " + err.message);
+      console.error("Error fetching doctors", err);
     }
   };
 
-  // Start edit
-  const startEdit = (s) => {
-    setEditId(s._id);
-    setShowForm(true);
-    setForm({
-      name: s.name || "",
-      clinicName: s.clinicName || "",
-      doctor: s.doctor || "",
-      charges: s.charges || "",
-      duration: s.duration || "00:00",
-      category: s.category || "",
-      active: s.active ?? true,
-    });
-    window.scrollTo({ top: 120, behavior: "smooth" });
+  useEffect(() => {
+    fetchServices();
+    fetchDoctors();
+  }, []);
+
+  // ---------- Handlers ----------
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Update
-  const updateService = async () => {
-    if (!editId) return;
-    if (!form.name || !form.name.trim()) {
-      alert("Please enter service name");
-      return;
-    }
-
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      const res = await api.put(`/services/${editId}`, form);
-      setServices((prev) => prev.map((s) => (s._id === editId ? res.data : s)));
-      setEditId(null);
-      clearForm();
+      await axios.post("http://localhost:3001/api/services", formData);
+      await fetchServices();
+      setShowForm(false);
+      setFormData({
+        category: "",
+        name: "",
+        charges: "",
+        clinic: "",
+        doctorId: "",
+        isTelemed: "No",
+        duration: "",
+        status: "Active",
+        allowMultiSelection: "Yes",
+      });
     } catch (err) {
-      console.error("updateService", err);
-      alert("Update failed");
+      console.error("Error creating service", err);
+      alert("Failed to create service");
     }
   };
 
-  const cancelEdit = () => {
-    setEditId(null);
-    clearForm();
-  };
-
-  // Delete
-  const deleteService = async (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm("Delete this service?")) return;
     try {
-      await api.delete(`/services/${id}`);
-      setServices((prev) => prev.filter((s) => s._id !== id));
+      await axios.delete(`http://localhost:3001/api/services/${id}`);
+      await fetchServices();
     } catch (err) {
-      console.error("deleteService", err);
-      alert("Delete failed");
+      console.error("Error deleting service", err);
     }
   };
 
-  // Toggle active
-  const toggleActive = async (id) => {
+  const handleStatusToggle = async (service) => {
     try {
-      const res = await api.put(`/services/toggle/${id}`);
-      setServices((prev) => prev.map((s) => (s._id === id ? res.data : s)));
+      const updatedStatus = service.status === "Active" ? "Inactive" : "Active";
+      await axios.put(`http://localhost:3001/api/services/${service._id}`, {
+        ...service,
+        status: updatedStatus,
+      });
+      await fetchServices();
     } catch (err) {
-      console.error("toggleActive", err);
-      alert("Toggle failed");
+      console.error("Error updating status", err);
     }
   };
 
-  const clearForm = () =>
-    setForm({
-      name: "",
-      clinicName: "",
-      doctor: "",
-      charges: "",
-      duration: "00:00",
-      category: "",
-      active: true,
-    });
+  const filteredServices = services.filter((s) => {
+    const text =
+      `${s._id || ""} ${s.serviceId || ""} ${s.name || ""} ${s.category || ""} ${
+        s.clinic || ""
+      } ${s.doctorName || ""} ${s.charges || ""} ${s.status || ""}`.toLowerCase();
+    return text.includes(search.toLowerCase());
+  });
 
-  // Filtered list
-  const filtered = services
-    .filter((s) => (s.name || "").toLowerCase().includes(searchTerm.toLowerCase()))
-    .filter((s) => {
-      if (statusFilter === "all") return true;
-      if (statusFilter === "active") return !!s.active;
-      return !s.active;
-    });
+  const getInitial = (name = "") =>
+    name.trim().length > 0 ? name.trim()[0].toUpperCase() : "?";
 
+  // ---------- UI ----------
   return (
-    <div>
-      <Sidebar collapsed={sidebarCollapsed} />
-
-      <div
-        className="flex-grow-1 main-content-transition"
-        style={{ marginLeft: sidebarCollapsed ? 64 : 250, minHeight: "100vh" }}
-      >
-        <Navbar toggleSidebar={toggleSidebar} />
-
-        <div className="container-fluid mt-3">
-          <div className="services-topbar mb-2 services-card">
-            <div style={{ fontWeight: 600 }}>Service List</div>
-            <div className="services-actions">
-              <button className="btn btn-outline-light btn-sm">
-                <i className="bi bi-upload me-1"></i> Import data
-              </button>
-
-              <button
-                className="btn btn-light btn-sm"
-                onClick={() => {
-                  setShowForm((s) => !s);
-                  if (!showForm) {
-                    clearForm();
-                    setEditId(null);
-                    setTimeout(() => window.scrollTo({ top: 120, behavior: "smooth" }), 80);
-                  }
-                }}
-              >
-                <i className="bi bi-plus-lg me-1"></i> {showForm ? "Hide Form" : "Add Service"}
-              </button>
-            </div>
+    <AdminLayout>
+      <div className="services-page container-fluid">
+        {/* Header */}
+        <div className="services-header d-flex justify-content-between align-items-center">
+          <h5 className="mb-0 fw-bold">Service List</h5>
+          <div>
+            <button className="btn btn-outline-primary btn-sm me-2 services-import-btn">
+              Import data
+            </button>
+            <button
+              className="btn btn-primary btn-sm services-add-btn"
+              onClick={() => setShowForm((prev) => !prev)}
+            >
+              {showForm ? "Close form" : "+ Add Service"}
+            </button>
           </div>
+        </div>
 
-          {/* Form */}
-          {showForm && (
-            <div className="card p-3 mb-3">
-              <div className="row g-2">
+        {/* Form */}
+        {showForm && (
+          <div className="card services-form-card mt-3 mb-3">
+            <div className="card-body">
+              <form onSubmit={handleSubmit}>
+                <div className="row g-3">
+                  <div className="col-md-4">
+                    <label className="form-label services-label">
+                      Service category <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="category"
+                      value={formData.category}
+                      onChange={handleChange}
+                      className="form-control form-control-sm"
+                      placeholder="Select service category"
+                      required
+                    />
+                    <small className="text-primary">
+                      Type and press enter to add new category
+                    </small>
+                  </div>
 
-                <div className="col-md-2">
-                  <input
-                    className="form-control"
-                    placeholder="Patient name *"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  />
-                </div>
+                  <div className="col-md-4">
+                    <label className="form-label services-label">
+                      Service Name <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      className="form-control form-control-sm"
+                      placeholder="Enter service name"
+                      required
+                    />
+                  </div>
 
+                  <div className="col-md-4">
+                    <label className="form-label services-label">
+                      Charges <span className="text-danger">*</span>
+                    </label>
+                    <div className="input-group input-group-sm">
+                      <span className="input-group-text">$</span>
+                      <input
+                        type="number"
+                        name="charges"
+                        value={formData.charges}
+                        onChange={handleChange}
+                        className="form-control"
+                        placeholder="Enter charges"
+                        min="0"
+                        required
+                      />
+                      <span className="input-group-text">/-</span>
+                    </div>
+                  </div>
 
+                  <div className="col-md-4">
+                    <label className="form-label services-label">
+                      Is this a telemed service?{" "}
+                      <span className="text-danger">*</span>
+                    </label>
+                    <select
+                      name="isTelemed"
+                      value={formData.isTelemed}
+                      onChange={handleChange}
+                      className="form-select form-select-sm"
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                  </div>
 
-                <div className="col-md-2">
-                  <select
-                    className="form-select"
-                    value={form.clinicName}
-                    onChange={(e) => setForm({ ...form, clinicName: e.target.value })}
-                  >
-                    <option value="">Select clinic</option>
-                    {clinicOptions.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div className="col-md-4">
+                    <label className="form-label services-label">
+                      Clinic <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="clinic"
+                      value={formData.clinic}
+                      onChange={handleChange}
+                      className="form-control form-control-sm"
+                      placeholder="Select clinic"
+                      required
+                    />
+                    <div className="form-check mt-1">
+                      <input
+                        type="checkbox"
+                        className="form-check-input"
+                        id="selectAllClinics"
+                        disabled
+                      />
+                      <label
+                        htmlFor="selectAllClinics"
+                        className="form-check-label services-small-text"
+                      >
+                        Select all
+                      </label>
+                    </div>
+                  </div>
 
+                  <div className="col-md-4">
+                    <label className="form-label services-label">
+                      Doctor <span className="text-danger">*</span>
+                    </label>
+                    <select
+                      name="doctorId"
+                      value={formData.doctorId}
+                      onChange={handleChange}
+                      className="form-select form-select-sm"
+                      required
+                    >
+                      <option value="">Select doctor</option>
+                      {doctors.map((doc) => (
+                        <option key={doc._id} value={doc._id}>
+                          {doc.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="form-check mt-1">
+                      <input
+                        type="checkbox"
+                        className="form-check-input"
+                        id="selectAllDoctors"
+                        disabled
+                      />
+                      <label
+                        htmlFor="selectAllDoctors"
+                        className="form-check-label services-small-text"
+                      >
+                        Select all
+                      </label>
+                    </div>
+                  </div>
 
-                <div className="col-md-2">
-                  <select
-                    className="form-select"
-                    value={form.doctor}
-                    onChange={(e) => setForm({ ...form, doctor: e.target.value })}
-                  >
-                    <option value="">Select doctor</option>
-                    {doctorOptions.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div className="col-md-4">
+                    <label className="form-label services-label">Duration</label>
+                    <input
+                      type="text"
+                      name="duration"
+                      value={formData.duration}
+                      onChange={handleChange}
+                      className="form-control form-control-sm"
+                      placeholder="HH:MM"
+                    />
+                  </div>
 
+                  <div className="col-md-4">
+                    <label className="form-label services-label">
+                      Status <span className="text-danger">*</span>
+                    </label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleChange}
+                      className="form-select form-select-sm"
+                      required
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
 
-                <div className="col-md-1">
-                  <input className="form-control" placeholder="Charges" value={form.charges} onChange={(e) => setForm({ ...form, charges: e.target.value })} />
-                </div>
-
-                <div className="col-md-1">
-                  <DurationPicker value={form.duration || "00:00"} onChange={(val) => setForm({ ...form, duration: val })} />
-                </div>
-
-                <div className="col-md-2">
-                  <select
-                    className="form-select"
-                    value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}
-                  >
-                    <option value="">Select service type</option>
-                    {categoryOptions.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-
-                <div className="col-md-1 d-flex align-items-center">
-                  <div className="form-check form-switch">
-                    <input className="form-check-input" type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
-                    <label style={{ fontSize: 12 }}>Active</label>
+                  <div className="col-md-4">
+                    <label className="form-label services-label">
+                      Allow multi selection while booking?{" "}
+                      <span className="text-danger">*</span>
+                    </label>
+                    <select
+                      name="allowMultiSelection"
+                      value={formData.allowMultiSelection}
+                      onChange={handleChange}
+                      className="form-select form-select-sm"
+                      required
+                    >
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </select>
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-3">
-                {editId ? (
-                  <>
-                    <button className="btn btn-success" onClick={updateService}>Update Service</button>
-                    <button className="btn btn-secondary ms-2" onClick={cancelEdit}>Cancel</button>
-                  </>
-                ) : (
-                  <>
-                    <button className="btn btn-primary" onClick={addService}>Add Service</button>
-                    <button className="btn btn-outline-secondary ms-2" onClick={clearForm}>Clear</button>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Search & Filters */}
-          <div className="mb-3 d-flex gap-2">
-            <input className="form-control" style={{ maxWidth: 300 }} placeholder="Search by name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-            <select className="form-select" style={{ width: 150 }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-
-          {/* Table */}
-          <div className="card services-card">
-            <div className="card-body">
-              <div className="table-responsive">
-                <table className="table table-borderless align-middle">
-                  <thead>
-                    <tr>
-                      <th></th>
-                      <th>Service ID</th>
-                      <th>Name</th>
-                      <th>Clinic Name</th>
-                      <th>Doctor</th>
-                      <th>Charges</th>
-                      <th>Duration</th>
-                      <th>Category</th>
-                      <th>Status</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {filtered.length === 0 ? (
-                      <tr>
-                        <td colSpan="11" className="text-center py-4">
-                          No services found
-                        </td>
-                      </tr>
-                    ) : (
-                      filtered.map((s, index) => (
-                        <tr key={s._id}>
-                          {/* checkbox */}
-                          <td>
-                            <input type="checkbox" />
-                          </td>
-
-                          {/* # */}
-                          <td>{index + 1}</td>
-
-                          {/* Service ID
-                          <td>{s.serviceId ?? "-"}</td> */}
-
-                          {/* Patient/Name */}
-                          <td>
-                            <div className="d-flex align-items-center gap-2">
-                              <div className="avatar-circle">
-                                {(s.name || "").charAt(0).toUpperCase()}
-                              </div>
-                              {s.name}
-                            </div>
-                          </td>
-
-                          {/* Clinic */}
-                          <td>{s.clinicName}</td>
-
-                          {/* Doctor */}
-                          <td>{s.doctor}</td>
-
-                          {/* Charges */}
-                          <td>{s.charges}</td>
-
-                          {/* Duration */}
-                          <td>{s.duration}</td>
-
-                          {/* Category */}
-                          <td>{s.category}</td>
-
-                          {/* Status */}
-                          <td>
-                            <div className="d-flex align-items-center gap-1">
-                              <div className="form-check form-switch">
-                                <input
-                                  className="form-check-input"
-                                  type="checkbox"
-                                  checked={!!s.active}
-                                  onChange={() => toggleActive(s._id)}
-                                />
-                              </div>
-                              <span className="status-pill">
-                                {s.active ? "ACTIVE" : "INACTIVE"}
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* Action */}
-                          <td>
-                            <button className="icon-btn" onClick={() => startEdit(s)}>
-                              <i className="bi bi-pencil"></i>
-                            </button>
-                            <button className="icon-btn" onClick={() => deleteService(s._id)}>
-                              <i className="bi bi-trash text-danger"></i>
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-
-                </table>
-              </div>
-
-              {/* Footer */}
-              <div className="d-flex justify-content-between mt-3">
-                <div>
-                  Rows per page:
-                  <select className="form-select d-inline-block ms-2" style={{ width: 80 }}>
-                    <option>10</option>
-                    <option>20</option>
-                    <option>50</option>
-                  </select>
+                <div className="mt-4 d-flex justify-content-end gap-2">
+                  <button type="submit" className="btn btn-primary services-save-btn">
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary services-cancel-btn"
+                    onClick={() => setShowForm(false)}
+                  >
+                    Cancel
+                  </button>
                 </div>
-
-                <div>Page <input value={1} readOnly style={{ width: 40, textAlign: "center" }} /> of 1</div>
-              </div>
-
+              </form>
             </div>
+          </div>
+        )}
+
+        {/* Search bar */}
+        <div className="services-search-wrapper mb-2">
+          <div className="input-group input-group-sm">
+            <span className="input-group-text services-search-icon">
+              <FaSearch size={12} />
+            </span>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="form-control services-search-input"
+              placeholder="Search services data by id, doctor, name, category, price  and status(active or inactive)"
+            />
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="card services-table-card">
+          <div className="card-body p-0">
+            <table className="table table-sm mb-0 services-table">
+              <thead>
+                <tr>
+                  <th className="services-checkbox-col">
+                    <input type="checkbox" />
+                  </th>
+                  <th>
+                    <span className="services-th-label">ID</span>{" "}
+                    <FaSort className="services-sort-icon" />
+                  </th>
+                  <th>
+                    <span className="services-th-label">Service ID</span>{" "}
+                    <FaSort className="services-sort-icon" />
+                  </th>
+                  <th>
+                    <span className="services-th-label">Name</span>{" "}
+                    <FaSort className="services-sort-icon" />
+                  </th>
+                  <th>
+                    <span className="services-th-label">Clinic Name</span>{" "}
+                    <FaSort className="services-sort-icon" />
+                  </th>
+                  <th>
+                    <span className="services-th-label">Doctor</span>{" "}
+                    <FaSort className="services-sort-icon" />
+                  </th>
+                  <th>
+                    <span className="services-th-label">Charges</span>{" "}
+                    <FaSort className="services-sort-icon" />
+                  </th>
+                  <th>
+                    <span className="services-th-label">Duration</span>{" "}
+                    <FaSort className="services-sort-icon" />
+                  </th>
+                  <th>
+                    <span className="services-th-label">Category</span>{" "}
+                    <FaSort className="services-sort-icon" />
+                  </th>
+                  <th>
+                    <span className="services-th-label">Status</span>{" "}
+                    <FaSort className="services-sort-icon" />
+                  </th>
+                  <th className="text-center">
+                    <span className="services-th-label">Action</span>
+                  </th>
+                </tr>
+
+                {/* filter row */}
+                <tr className="services-filter-row">
+                  <th className="services-checkbox-col">
+                    <input type="checkbox" disabled />
+                  </th>
+                  <th>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="ID"
+                      disabled
+                    />
+                  </th>
+                  <th>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Service ID"
+                      disabled
+                    />
+                  </th>
+                  <th>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Filter service by name"
+                      disabled
+                    />
+                  </th>
+                  <th>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Filter Encounter"
+                      disabled
+                    />
+                  </th>
+                  <th>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Filter service by doctor"
+                      disabled
+                    />
+                  </th>
+                  <th>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Filter Service by charges"
+                      disabled
+                    />
+                  </th>
+                  <th>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="HH:mm"
+                      disabled
+                    />
+                  </th>
+                  <th>
+                    <select className="form-select form-select-sm" disabled>
+                      <option>Filter service by name</option>
+                    </select>
+                  </th>
+                  <th>
+                    <select className="form-select form-select-sm" disabled>
+                      <option>Filter by status</option>
+                    </select>
+                  </th>
+                  <th />
+                </tr>
+              </thead>
+
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={11} className="text-center py-3">
+                      Loading...
+                    </td>
+                  </tr>
+                ) : filteredServices.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="text-center py-3">
+                      No services found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredServices.map((s, index) => (
+                    <tr key={s._id || index}>
+                      <td className="services-checkbox-col">
+                        <input type="checkbox" />
+                      </td>
+                      <td>{s.displayId || s.id ||  index + 1}</td>
+                      <td>{s.serviceId || "-"}</td>
+
+                      {/* Name with circular initial */}
+                      <td>
+                        <div className="services-name-cell">
+                          <div className="services-avatar">
+                            {getInitial(s.name)}
+                          </div>
+                          <span>{s.name}</span>
+                        </div>
+                      </td>
+
+                      <td>{s.clinic}</td>
+                      <td>{s.doctorName || "-"}</td>
+                      <td>$ {s.charges}/-</td>
+                      <td>{s.duration || "-"}</td>
+                      <td>{s.category}</td>
+
+                      {/* Status switch + ACTIVE badge */}
+                      <td>
+                        <div
+                          className="services-status-wrapper"
+                          onClick={() => handleStatusToggle(s)}
+                        >
+                          <div
+                            className={
+                              "services-switch " +
+                              (s.status === "Active" ? "on" : "off")
+                            }
+                          >
+                            <div className="services-switch-thumb" />
+                          </div>
+                          <span
+                            className={
+                              "services-status-badge " +
+                              (s.status === "Active"
+                                ? "status-active"
+                                : "status-inactive")
+                            }
+                          >
+                            {s.status.toUpperCase()}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Action buttons */}
+                      <td className="text-center">
+                        <button className="btn btn-sm services-icon-btn services-edit-btn me-1">
+                          <FaPen size={12} />
+                        </button>
+                        <button
+                          className="btn btn-sm services-icon-btn services-delete-btn"
+                          onClick={() => handleDelete(s._id)}
+                        >
+                          <FaTrash size={12} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
-    </div>
+    </AdminLayout>
   );
-}
+};
+
+export default Services;

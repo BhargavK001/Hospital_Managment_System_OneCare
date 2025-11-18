@@ -69,7 +69,7 @@ const Sidebar = () => {
           </a>
         </li>
         <li className="nav-item mb-2">
-          <a href="./Services" className="nav-link text-primary d-flex align-items-center gap-2">
+          <a href="./services" className="nav-link text-primary d-flex align-items-center gap-2">
             <FaListAlt /> Services
           </a>
         </li>

@@ -84,9 +84,9 @@ function App() {
         <Route path="/BillingRecords" element={<BillingRecords />} />
         <Route path="/AddBill" element={<AddBill />} />
         <Route path="/EditBill/:id" element={<EditBill />} />
-
-        <Route path="/Services" element={<Services />} />
         
+          {/*Service section */}
+          <Route path="/services" element={<Services />} />
 
         {/* Optional: default/fallback route – send unknown URLs to login or any page you want */}
         <Route path="*" element={<Navigate to="/login" replace />} />

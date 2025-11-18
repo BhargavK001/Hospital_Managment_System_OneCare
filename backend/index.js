@@ -248,64 +248,53 @@ app.delete("/bills/:id", async (req, res) => {
   }
 });
 
-// -------------------------- Services ----------------------------
-// GET all services
+// 👉 Get all services
 app.get("/api/services", async (req, res) => {
   try {
-    const all = await Service.find();
-    console.log("GET /api/services ->", all.length, "items");  
-    res.json(all);
+    const services = await Service.find()
+      .populate("doctorId", "name") // to get doctor name
+      .sort({ createdAt: -1 });
+
+    // format doctorName for frontend convenience
+    const formatted = services.map((s) => ({
+      ...s.toObject(),
+      doctorName: s.doctorId ? s.doctorId.name : "",
+    }));
+
+    res.json(formatted);
   } catch (err) {
-    console.error("GET /api/services error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    console.error("Error fetching services", err);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-
-// ADD service
+// 👉 Create new service
 app.post("/api/services", async (req, res) => {
   try {
-    console.log("POST /api/services body:", req.body);   
-    const data = new Service(req.body);
-    const saved = await data.save();
-    console.log("Saved service:", saved);                
-    res.json(saved);
+    const newService = await Service.create(req.body);
+    res.status(201).json(newService);
   } catch (err) {
-    console.error("Error saving service:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    console.error("Error creating service", err);
+    res.status(400).json({ error: "Failed to create service" });
   }
 });
 
-
-// DELETE service
-app.delete("/api/services/:id", async (req, res) => {
-  await Service.findByIdAndDelete(req.params.id);
-  res.json({ message: "Deleted" });
-});
-
-// TOGGLE Active status
-app.put("/api/services/toggle/:id", async (req, res) => {
-  const service = await Service.findById(req.params.id);
-  service.active = !service.active;
-  await service.save();
-  res.json(service);
-});
-
-// UPDATE service (very simple)
+// 👉 Update service (for status/edit)
 app.put("/api/services/:id", async (req, res) => {
   try {
-    // find and update, return the updated document
-    const updated = await Service.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!updated) {
-      return res.status(404).json({ message: "Service not found" });
-    }
+    const updated = await Service.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
     res.json(updated);
   } catch (err) {
-    console.error("Update service error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    console.error("Error updating service", err);
+    res.status(400).json({ error: "Failed to update service" });
   }
 });
 
+<<<<<<< Updated upstream
 // Cancel appointment (mark status Cancelled)
 app.put("/appointments/:id/cancel", async (req, res) => {
   try {
@@ -326,6 +315,31 @@ app.put("/appointments/:id/cancel", async (req, res) => {
   }
 });
 
+=======
+// 👉 Delete service
+app.delete("/api/services/:id", async (req, res) => {
+  try {
+    await Service.findByIdAndDelete(req.params.id);
+    res.json({ message: "Service deleted" });
+  } catch (err) {
+    console.error("Error deleting service", err);
+    res.status(400).json({ error: "Failed to delete service" });
+  }
+});
+
+// 👉 Get doctors list for dropdown
+app.get("/api/doctors", async (req, res) => {
+  try {
+    const doctors = await DoctorModel.find({}, "name"); // only id + name
+    res.json(doctors);
+  } catch (err) {
+    console.error("Error fetching doctors", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
+>>>>>>> Stashed changes
 app.listen(3001,()=> {
     console.log("Server is runing")
 })
